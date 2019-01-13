@@ -1,0 +1,124 @@
+---
+title: "R Intermediate Workshop"
+author:
+- email: lhuang@bsd.uchicago.edu
+  name: Lei Huang
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_notebook:
+    fig_caption: yes
+    highlight: espresso
+    number_sections: yes
+    self_contain: yes
+    toc: yes
+  github_document: default
+
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=8, fig.height=6, echo=TRUE, warning=FALSE, message=FALSE)
+```
+
+# Initial analysis
+
+## Load libraries
+```{r}
+library(here)
+library(tidyverse)
+```
+
+## Create directories
+
+```{r create_directory, echo=TRUE}
+if(!dir.exists(here("data"))){
+    dir.create(here("data"))
+}
+if(!dir.exists(here("results"))){
+    dir.create(here("results"))
+}
+if(!dir.exists(here("src"))){
+    dir.create(here("src"))
+}
+```
+
+## Download files from github
+
+```{r, eval=FALSE}
+download.file(url = "https://github.com/lxhuang7/r_intermediate_workshop/raw/master/data/counts-norm.txt.gz", destfile = here("data/counts-raw.txt.gz"), method = "wget")
+
+download.file(url = "https://github.com/lxhuang7/r_intermediate_workshop/raw/master/data/counts-raw.txt.gz", destfile = here("data/counts-norm.txt.gz"), method = "wget")
+```
+
+## First data analysis
+
+```{r first_data_analysis, results='asis'}  
+counts_raw <- read_tsv(here("data/counts-raw.txt.gz"))
+summary(counts_raw$plosCommentCount)
+counts_raw %>% dplyr::select(plosCommentCount) %>% summary()
+
+# define a new variable
+weeks_since_pub <- counts_raw$daysSincePublished / 7
+```
+```{r histogram, fig.align="center", fig.cap="fig.1: week"}
+
+# the figure does not appear in html_notebook? why?
+hist(weeks_since_pub)
+```
+
+## Math
+
+<!-- comment in html -->
+Here is an example of a math formula $y=x^2$  
+`r dim(counts_raw)[1]`
+
+## Excercise
+
+```{r}
+hist(counts_raw$pdfDownloadsCount, main = "pdf downloads counts", xlab = "", ylab = "Counts")
+```
+
+```{r}
+plot(counts_raw$pdfDownloadsCount, counts_raw$almCrossRefCount, 
+     main = "Scatter plot for pdf download count vs crossrefcount", 
+     xlab = "almCrossRefCount", 
+     ylab = "pdfDownloadsCount",
+     cex = 0.5, pch = 20)
+```
+
+## Debugging
+```{r}
+num_unique <- function(x){
+    unique_data <- unique(x)
+    length_unique <- length(unique_data) / 
+    print(length_unique)
+    return(length_unique)
+}
+
+counts_columns <- c("facebookShareCount", "facebookLikeCount")
+
+max_of_each_col <- function(data, count_colnames){
+  number_of_columns <- length(count_colnames)
+  results <- integer(number_of_columns)
+  for(i in seq_along(count_colnames)){
+    my_column <- count_colnames[i]
+    my_vector <- data[[my_column]]
+    results[i] <- max(my_vector, na.rm = TRUE)
+  }
+  # data.sub <- data[, counts_columns] %>% as.data.frame()
+  # a=apply(data.sub, 2, function(x) max(x, na.omit = TRUE))
+  # return(a)
+  return(results)
+}
+
+# debugonce(max_of_each_col)
+max_of_each_col(counts_raw, counts_columns)
+
+
+```
+
+
+
+
+
+
+
