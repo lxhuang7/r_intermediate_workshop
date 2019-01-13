@@ -1,0 +1,324 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data wrangling
+
+Load library
+
+```{r}
+library(here)
+library(tidyverse)
+```
+
+Load data
+
+```{r}
+counts_row <- read_delim("data/counts-raw.txt.gz", delim = "\t")
+```
+
+Goals
+
+subset rows of a dataframe and select columns of a dataframe
+
+```{r}
+research <- counts_row %>% filter(articleType == "Research Article")
+```
+
+fitler research articles from 2006
+
+```{r}
+research_2006 <- counts_row %>% filter(year == 2006) 
+nrow(research_2006)
+```
+
+```{r}
+research_2006_tweet <- research_2006 %>% filter(backtweetsCount == 0)
+```
+
+Reasearch articles from 2006 with a facebook comment
+```{r}
+research_2006_fb <- research_2006 %>% filter(year == 2006, facebookCommentCount > 0)
+```
+
+We can use logical operators:
+
+AND & OR |
+
+```{r}
+research_2006_fb_tweet <- research %>% filter(year == 2006, facebookCommentCount > 0 | backtweetsCount > 0)
+```
+
+Article in 2006 with social
+```{r}
+research %>% filter(year == 2006, facebookCommentCount > 0 | backtweetsCount > 0, grepl("Infectious Diseases", plosSubjectTags))
+```
+Subset the columns with the article info using the dplyr function select()
+
+```{r}
+article_info <- research %>% select(doi, pubDate, journal, title, articleType, authorsCount)
+```
+
+New data frame with columns doi:authorsCount
+
+```{r}
+article_info <- research %>% select(doi:authorsCount)
+```
+
+Create a metrics dataframe
+
+```{r}
+metrics <- research %>% select(contains("Count"))
+```
+
+Exclude a column after contains
+
+```{r}
+metrics <- research %>% select(contains("Count"), -authorsCount)
+metrics <- research %>% select(contains("Count"), -authorsCount, f1000Factor, wikipediaCites)
+```
+
+Journal column
+
+```{r}
+select(research, journal)
+```
+
+Slice: Slicing only the rows we want by numnbers
+
+Rows 1:3 article info dataframe
+
+```{r}
+slice(article_info, 1:3)
+```
+
+
+```{r}
+research_2009 <- counts_row %>% filter(year == 2009) %>% nrow()
+research_2009 <- counts_row %>% filter(year == 2009) %>% 
+    filter(backtweetsCount > 0 | facebookCommentCount > 0) %>% 
+    nrow()
+
+research_2009 <- counts_row %>% filter(year == 2009) %>% 
+    filter(mendeleyReadersCount > 0) %>% 
+    nrow()
+    
+```
+
+```{r}
+research_2009 <- counts_row %>% filter(year == 2009) %>% 
+    filter(!is.na(backtweetsCount) & (backtweetsCount > 0))
+```
+
+
+Arrange to sort dataframe
+```{r}
+research %>% arrange(authorsCount, wosCountThru2011) %>% 
+    select(authorsCount, wosCountThru2011) %>% 
+    slice(1:10)
+```
+
+Decreasing order
+
+```{r}
+research %>% arrange(desc(authorsCount), desc(wosCountThru2011)) %>% 
+    select(authorsCount, wosCountThru2011) %>% 
+    slice(1:10)
+```
+
+```{r}
+research %>% arrange(desc(wosCountThru2011)) %>% 
+    select(wosCountThru2011, title) %>% 
+    slice(1:3)
+
+
+```
+
+```{r}
+research %>% arrange(desc(authorsCount)) %>% 
+    select(authorsCount, title, journal, plosSubjectTags) %>% 
+    slice(1:3)
+```
+
+
+## summarize data with dplyr
+
+Goals:
+
+* new columns with mutate
+* summarize with summarize
+* count number of obsevation n()
+* group data by variable (group_by)
+
+```{r}
+research <- research %>% mutate(weeksSincePublished = daysSincePublished / 7)
+```
+
+```{r}
+research <- research %>% mutate(weeksSincePublished = daysSincePublished / 7,
+                                yearsSincePublised = weeksSincePublished / 52)
+```
+
+Summarize the data:
+
+```{r}
+research %>% summarise(plos_mean = mean(plosCommentCount))
+```
+
+
+```{r}
+plot_stats <- research %>% summarise(plos_mean = mean(plosCommentCount), plos_sd <- sd(plosCommentCount))
+```
+
+```{r}
+research %>% filter(journal == "pone", year == 2007) %>% 
+    summarise(plos_mean = mean(plosCommentCount),
+              plos_sd = sd(plosCommentCount))
+```
+
+add # of observations
+```{r}
+research %>% filter(journal == "pone", year == 2007) %>% 
+    summarise(plos_mean = mean(plosCommentCount),
+              plos_sd = sd(plosCommentCount),
+              num = n())
+```
+
+Use group_by to get stats by a grouping of the data
+
+```{r}
+mean_metric_per_var <- function(metric, variable){
+    result = integer(length(variable))
+    for(v in variable){
+        result[v] <- mean(metric(variable = v))
+    }
+    return(result)
+}
+
+research %>% group_by(journal) %>% 
+    summarise(tweets_mean = mean(backtweetsCount))
+```
+
+Group by 2 variables
+
+```{r}
+research %>% group_by(journal, year) %>% 
+    summarise(tweets_mean = mean(backtweetsCount))
+```
+
+
+```{r}
+research %>% group_by(journal) %>% 
+    summarise(num = n(),
+              tweet_mean = mean(backtweetsCount),
+        tweets_sem = sd(backtweetsCount)/sqrt(num))
+
+```
+
+Goals:
+
+* Map columns of a data frame to plot aesthetics using aes
+* Add layers to plot
+
+```{r}
+p <- ggplot(data = research, aes(x = pdfDownloadsCount, y = wosCountThru2011)) +
+    geom_point()
+
+p <- ggplot(data = research, aes(x = pdfDownloadsCount, y = wosCountThru2011)) +
+    geom_point(aes(color = journal))
+
+```
+
+
+Change size of points by variable
+
+```{r}
+p <- ggplot(data = research, aes(x = pdfDownloadsCount, y = wosCountThru2011)) +
+    geom_point(aes(size = wosCountThru2011))
+```
+
+Change alpha of points by variable
+
+```{r}
+p <- ggplot(data = research, aes(x = pdfDownloadsCount, y = wosCountThru2011)) +
+    geom_point(aes(alpha = daysSincePublished))
+p
+
+```
+
+
+```{r}
+p <- ggplot(data = research, aes(x = pdfDownloadsCount, y = wosCountThru2011)) +
+    geom_point(color = "red", aes(size = authorsCount))
+p
+
+```
+
+Add another geometry layer
+
+```{r}
+p <- ggplot(data = research, aes(x = pdfDownloadsCount, y = wosCountThru2011)) +
+    geom_point(aes(alpha = daysSincePublished)) +
+    geom_smooth()
+p
+
+```
+
+Color both layers  by journal
+
+```{r}
+p <- ggplot(data = research, aes(x = pdfDownloadsCount, 
+                                 y = wosCountThru2011,
+                                 color = journal)) +
+    geom_point() +
+    geom_smooth() 
+p
+```
+
+
+```{r}
+p <- ggplot(data = research, aes(x = daysSincePublished,
+                                 y = wosCountThru2011,
+                                 color = journal)) +
+    geom_point(aes(alpha = 0.5)) +
+    geom_smooth(color = "red") 
+p
+```
+
+
+```{r}
+p + scale_x_log10() + scale_y_log10()
+```
+
+```{r}
+p <- ggplot(data = research, aes(x = log10(daysSincePublished + 1),
+                                 y = log10(wosCountThru2011 + 1))) +
+    geom_point(aes(color = journal)) +
+    geom_smooth() +
+    scale_x_continuous(breaks = c(1,3), labels = c(10, 1000)) +
+    scale_y_continuous(breaks = c(1,3), labels = c(10, 1000)) +
+    scale_color_grey()
+p
+
+library(RColorBrewer)
+p + scale_color_manual(volumes = )
+
+p <- ggplot(data = research, aes(x = sqrt(pdfDownloadsCount),
+                                 y = sqrt(wosCountThru2011))) +
+    geom_point(aes(color = journal)) +
+    geom_smooth(color = "red") +
+    # scale_x_continuous(breaks = c(1,3), labels = c(10, 1000)) +
+    # scale_y_continuous(breaks = c(1,3), labels = c(10, 1000)) +
+    scale_color_brewer(palette = "Accent") +
+    theme_bw(color = scale_color_brewer(palette = "Accent")) +
+    labs(x = "Square root of downloads",
+         y = "Square root of Counts through 2011")
+p
+```
+
+
